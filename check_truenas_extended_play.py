@@ -247,6 +247,54 @@ class Startup(object):
         else:
             print ('OK - No problem Zpools. Zpools examined: ' + zpools_examined)
             sys.exit(0)
+            
+    def check_disks(self):
+        pool_results = self.get_request('pool')
+        
+        try:
+            for pool in pool_results:
+
+                pool_topology = pool['topology']
+                pool_name = pool['name']
+                
+                logging.debug('pool_topology: %s ', str(pool_topology))
+                
+                #print('pool_name ---' + str(pool_name))
+                #print('pool_topology ---' + str(pool_topology))
+                
+                Position = str(pool_topology).find('size') 
+                #print('Position --- ' + str(Position))
+                size = str(pool_topology)[(Position+len('size')+2):(Position+len('size')+2+14)]
+                size = str.replace(size, ',', '')
+                #print('size --- ' + str(size))
+                size = int(size)
+                #print('size ', size)
+                
+                Position = str(pool_topology).find('allocated') 
+                #print('Position --- ' + str(Position))
+                used = str(pool_topology)[(Position+len('allocated')+2):(Position+len('allocated')+2+14)]
+                used = str.replace(used, ',', '')
+                #print('used --- ' + str(used))
+                used = int(used)
+                #print('used ', used)
+                
+                percent = round(used / size * 100)+3
+                #print('percent ', percent, '%')
+                
+        except:
+            print ('UNKNOWN - check_zpool() - Error when contacting TrueNAS server: ' + str(sys.exc_info()))
+            sys.exit(3)
+        #percent = '92'
+        if int(percent) > 90:
+            print('CRITICAL: Disk used ', percent,  '%')
+            sys.exit(2)
+        elif int(percent) > 80:
+            print('WARNING: Disk used ', percent, '%')
+            sys.exit(1)
+        else:
+            print('OK: Disk used ', percent, '%')
+            sys.exit(0)
+
  
     def handle_requested_alert_type(self, alert_type):
         if alert_type == 'alerts':
@@ -271,7 +319,7 @@ class Startup(object):
             #print('Should be setting no logging level at all')
             logger.setLevel(logging.CRITICAL)
 
-check_truenas_script_version = '1.1'
+check_truenas_script_version = '1.2'
 
 def main():
     # Build parser for arguments
@@ -279,7 +327,7 @@ def main():
     parser.add_argument('-H', '--hostname', required=True, type=str, help='Hostname or IP address')
     parser.add_argument('-u', '--user', required=True, type=str, help='Normally only root works')
     parser.add_argument('-p', '--passwd', required=True, type=str, help='Password')
-    parser.add_argument('-t', '--type', required=True, type=str, help='Type of check, either alerts, zpool, or repl')
+    parser.add_argument('-t', '--type', required=True, type=str, help='Type of check, either alerts, zpool, disks or repl')
     parser.add_argument('-pn', '--zpoolname', required=False, type=str, default='all', help='For check type zpool, the name of zpool to check. Optional; defaults to all zpools.')
     parser.add_argument('-ns', '--no-ssl', required=False, action='store_true', help='Disable SSL (use HTTP); default is to use SSL (use HTTPS)')
     parser.add_argument('-nv', '--no-verify-cert', required=False, action='store_true', help='Do not verify the server SSL cert; default is to verify the SSL cert')
